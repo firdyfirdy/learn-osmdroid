@@ -1,7 +1,9 @@
 package id.firdy.mapsmarker
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.pm.PackageManager
+import android.location.Location
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.preference.PreferenceManager
@@ -10,6 +12,8 @@ import android.widget.EditText
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
@@ -22,12 +26,24 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var map: MapView
     private val REQUEST_PERMISSIONS_REQUEST_CODE = 1
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
+
+    /* Default Long-Lat */
+    private var homeLatitude = -6.315970
+    private var homeLongitude = 106.966743
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        Configuration.getInstance().load(applicationContext, PreferenceManager.getDefaultSharedPreferences(applicationContext))
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        getLastLocation()
+
+        Configuration.getInstance().load(
+            applicationContext,
+            PreferenceManager.getDefaultSharedPreferences(applicationContext)
+        )
         Configuration.getInstance().userAgentValue = BuildConfig.APPLICATION_ID
 
         map = findViewById(R.id.mapView)
@@ -53,8 +69,6 @@ class MainActivity : AppCompatActivity() {
         compassOverlay.enableCompass()
         map.overlays.add(compassOverlay)
 
-        val homeLatitude = -6.315970
-        val homeLongitude = 106.966743
         setMarker(homeLatitude, homeLongitude)
 
         /*region Button Listener*/
@@ -63,10 +77,16 @@ class MainActivity : AppCompatActivity() {
         val txtLongitude = findViewById<EditText>(R.id.txtLongitude)
         btnSubmit.setOnClickListener {
             /* Jika input text latitude dan longitude tidak kosong */
-            if(txtLatitude.text.toString().isNotBlank() && txtLongitude.text.toString().isNotBlank()){
-                setMarker(txtLatitude.text.toString().toDouble(), txtLongitude.text.toString().toDouble())
-            }else{
-                Toast.makeText(this, "Harap masukan Latitude & Longitude", Toast.LENGTH_SHORT).show()
+            if (txtLatitude.text.toString().isNotBlank() && txtLongitude.text.toString()
+                    .isNotBlank()
+            ) {
+                setMarker(
+                    txtLatitude.text.toString().toDouble(),
+                    txtLongitude.text.toString().toDouble()
+                )
+            } else {
+                Toast.makeText(this, "Harap masukan Latitude & Longitude", Toast.LENGTH_SHORT)
+                    .show()
             }
         }
         /*endregion*/
@@ -80,6 +100,8 @@ class MainActivity : AppCompatActivity() {
         startMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
         map.overlays.add(startMarker)
         map.controller.setCenter(point)
+        Toast.makeText(this, "Latitude: $dLatitude. Longitude: $dLongitude", Toast.LENGTH_SHORT)
+            .show()
     }
 
     override fun onResume() {
@@ -127,5 +149,16 @@ class MainActivity : AppCompatActivity() {
                 REQUEST_PERMISSIONS_REQUEST_CODE
             )
         }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun getLastLocation() {
+        fusedLocationClient.lastLocation
+            .addOnSuccessListener { location: Location? ->
+                if (location != null) {
+                    homeLatitude = location.latitude
+                    homeLongitude = location.longitude
+                }
+            }
     }
 }
